@@ -86,6 +86,7 @@ except ImportError:
 # ----------------------------------------------------------------------
 # Argument parsing
 # ----------------------------------------------------------------------
+
 def parse_args():
     p = argparse.ArgumentParser(description="Generalized RL trainer (DQN)")
 
@@ -100,8 +101,6 @@ def parse_args():
     # Reward shaping
     p.add_argument("--reward-rules", type=str, default="[]",
                     help="JSON list of manual reward shaping rules (see script docstring)")
-    p.add_argument("--reward-rules-file", type=str, default=None,
-                    help="Path to a JSON file containing reward shaping rules (overrides --reward-rules)")
     p.add_argument("--fail-reward-threshold", type=float, default=0.0,
                     help="Env reward below this on termination counts as failure (default: 0.0)")
 
@@ -155,6 +154,7 @@ def parse_args():
 # ----------------------------------------------------------------------
 # Reward shaping engine
 # ----------------------------------------------------------------------
+
 OPS = {
     ">": lambda a, b: a > b,
     "<": lambda a, b: a < b,
@@ -208,6 +208,7 @@ def apply_reward_rules(rules, base_reward, state, action, terminated, truncated,
 # ----------------------------------------------------------------------
 # Q-Network
 # ----------------------------------------------------------------------
+
 def get_activation(name):
     return {
         "relu": nn.ReLU(),
@@ -249,6 +250,7 @@ def get_optimizer(name, params, lr, weight_decay):
 # ----------------------------------------------------------------------
 # Replay buffer
 # ----------------------------------------------------------------------
+
 class ReplayBuffer:
     def __init__(self, capacity):
         self.buffer = deque(maxlen=capacity)
@@ -269,6 +271,7 @@ class ReplayBuffer:
 # ----------------------------------------------------------------------
 # Main training loop
 # ----------------------------------------------------------------------
+
 def main():
     args = parse_args()
 
@@ -277,15 +280,11 @@ def main():
     torch.manual_seed(args.seed)
 
     try:
-        if args.reward_rules_file:
-            with open(args.reward_rules_file, "r") as f:
-                reward_rules = json.load(f)
-        else:
-            reward_rules = json.loads(args.reward_rules)
+        reward_rules = json.loads(args.reward_rules)
         if not isinstance(reward_rules, list):
-            raise ValueError("reward rules must be a JSON list")
-    except (json.JSONDecodeError, ValueError, FileNotFoundError) as e:
-        print(f"Error loading reward rules: {e}", file=sys.stderr)
+            raise ValueError("reward-rules must be a JSON list")
+    except (json.JSONDecodeError, ValueError) as e:
+        print(f"Error parsing --reward-rules: {e}", file=sys.stderr)
         sys.exit(1)
 
     if args.device == "auto":
