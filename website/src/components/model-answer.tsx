@@ -11,11 +11,18 @@ interface ModelAnswerProps {
   rfTrees: number;
   maxDepth: number;
   knnK: number;
+  onResultUpdate?: (
+    modelName: string,
+    result: ModelResultSummary | null,
+  ) => void;
 }
 
-interface ModelResult {
+interface ModelResultSummary {
   accuracy: number;
   cv_score: number;
+}
+
+interface ModelResult extends ModelResultSummary {
   confusion_matrix: number[][];
   classification_report: Record<string, any>;
 }
@@ -27,6 +34,7 @@ export default function ModelAnswer({
   rfTrees,
   maxDepth,
   knnK,
+  onResultUpdate,
 }: ModelAnswerProps) {
   const [modelResult, setModelResult] = useState<ModelResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -88,17 +96,33 @@ export default function ModelAnswer({
           (model) => model.value === modelName,
         )?.label;
         if (modelLabel && result.models && result.models[modelLabel]) {
-          setModelResult(result.models[modelLabel]);
+          const modelData = result.models[modelLabel] as ModelResult;
+          setModelResult(modelData);
+          onResultUpdate?.(modelName, {
+            accuracy: modelData.accuracy,
+            cv_score: modelData.cv_score,
+          });
+        } else {
+          onResultUpdate?.(modelName, null);
         }
       } catch (error) {
         console.error(`Failed to train model ${modelName}:`, error);
+        onResultUpdate?.(modelName, null);
       } finally {
         setLoading(false);
       }
     };
 
     trainModel();
-  }, [modelName, selectedDataset, selectedTarget, rfTrees, maxDepth, knnK]);
+  }, [
+    modelName,
+    selectedDataset,
+    selectedTarget,
+    rfTrees,
+    maxDepth,
+    knnK,
+    onResultUpdate,
+  ]);
 
   return (
     <>
