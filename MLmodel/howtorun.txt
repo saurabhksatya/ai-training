@@ -1,0 +1,1 @@
+python train.py --data data.csv --target-col label --hidden-layers 128 64 32 --activation relu --epochs 50 --batch-size 32 --lr 0.001 --optimizer adam --dropout 0.2 --task classification
