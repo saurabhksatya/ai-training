@@ -1,0 +1,21 @@
+[
+  {
+    "type": "step_penalty",
+    "value": -0.01
+  },
+  {
+    "type": "state_threshold",
+    "index": 2,
+    "op": ">",
+    "value": 0.1,
+    "reward": -1
+  },
+  {
+    "type": "terminal_bonus",
+    "reward": 50
+  },
+  {
+    "type": "terminal_penalty",
+    "reward": -50
+  }
+]
