@@ -1,6 +1,5 @@
-# AI Model Training Platform
-NEUROFORGE - 
-A web-based machine learning platform that enables users to upload datasets, select target variables, train pre-built ML models, compare performance metrics, and generate predictions through an intuitive interface.
+# NEUROFORGE - AI Model Training Platform
+NeuroForge, a web-based machine learning platform that enables users to upload datasets, select target variables, train pre-built ML models, compare performance metrics, and generate predictions through an intuitive interface.
 
 ---
 
