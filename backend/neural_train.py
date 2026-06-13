@@ -1,3 +1,6 @@
+import base64
+import io
+
 import numpy as np
 import pandas as pd
 import torch
@@ -273,6 +276,25 @@ def train_and_predict(
             clean_row_dict["confidence"] = None
             
         predictions_list.append(clean_row_dict)
+
+    model_metadata = {
+        "input_dim": X_train.shape[1],
+        "hidden_layers": hidden_layers,
+        "output_dim": output_dim,
+        "activation": activation,
+        "dropout": dropout,
+        "batch_norm": batch_norm,
+        "task": task,
+    }
+
+    model_cpu = model.to("cpu")
+    buffer = io.BytesIO()
+    torch.save(
+        {"model_state_dict": model_cpu.state_dict(), "metadata": model_metadata},
+        buffer,
+    )
+    buffer.seek(0)
+    model_bytes_base64 = base64.b64encode(buffer.read()).decode("ascii")
         
     return {
         "history": history,
@@ -281,5 +303,7 @@ def train_and_predict(
         "features_count": X_train.shape[1],
         "samples_count": len(df_train),
         "test_samples_count": len(df_test),
-        "task": task
+        "task": task,
+        "model_download_name": "neural_model.pt",
+        "model_bytes_base64": model_bytes_base64,
     }

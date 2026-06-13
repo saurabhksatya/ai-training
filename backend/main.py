@@ -18,7 +18,7 @@ class TrainingRequest(BaseModel):
 
     gb_estimators: int = 100
 
-app = FastAPI(title="")
+app = FastAPI(title="NeuroForge")
 
 MAX_FILE_SIZE_MB = 10
 MAX_ROWS = 50000

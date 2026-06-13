@@ -86,18 +86,22 @@ export default function Home() {
         <Selection
           selectedDataset={selectedDataset}
           onDatasetChange={(value) => {
-            setSelectedDataset(value);
             setSelectedTarget("");
             setSelectedModels([]);
             setRfTrees(100);
             setMaxDepth(10);
             setKnnK(5);
             setModelResults({});
+            setSelectedDataset(value);
           }}
           selectedTarget={selectedTarget}
           onTargetChange={(value) => {
-            setSelectedTarget(value);
+            setSelectedModels([]);
+            setRfTrees(100);
+            setMaxDepth(10);
+            setKnnK(5);
             setModelResults({});
+            setSelectedTarget(value);
           }}
           selectedModels={selectedModels}
           onModelChange={(value) =>

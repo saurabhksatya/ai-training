@@ -34,6 +34,8 @@ interface RunResults {
   samples_count: number;
   test_samples_count: number;
   task: string;
+  model_download_name?: string;
+  model_bytes_base64?: string;
 }
 
 export default function NeuralTrainPage() {
@@ -209,6 +211,24 @@ export default function NeuralTrainPage() {
     document.body.removeChild(link);
   };
 
+  const handleDownloadModel = () => {
+    if (!results || !results.model_bytes_base64 || !results.model_download_name)
+      return;
+
+    const bytes = Uint8Array.from(atob(results.model_bytes_base64), (c) =>
+      c.charCodeAt(0),
+    );
+    const blob = new Blob([bytes], { type: "application/octet-stream" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.setAttribute("href", url);
+    link.setAttribute("download", results.model_download_name);
+    link.style.visibility = "hidden";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   // Filter and Paginate predictions
   const filteredPredictions = results
     ? results.predictions.filter((row) =>
@@ -240,11 +260,6 @@ export default function NeuralTrainPage() {
           <h1 className="font-headline font-bold text-3xl text-on-surface">
             Neural Network Trainer
           </h1>
-          <p className="text-on-surface-variant text-sm max-w-2xl">
-            Upload training and testing datasets, design a Multi-Layer
-            Perceptron (MLP) architecture, and predict test outcomes with
-            confidence values using PyTorch in the backend.
-          </p>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-lg items-start">
@@ -709,7 +724,7 @@ export default function NeuralTrainPage() {
 
                 {/* Predictions results Section */}
                 <div className="bg-surface-container rounded-xl p-lg border border-outline-variant flex flex-col gap-md">
-                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-sm">
+                  <div className="flex flex-col md:flex-row md:items-center space-x-6 gap-sm">
                     <div className="flex flex-col gap-1">
                       <h3 className="font-headline font-semibold text-on-surface text-base">
                         Test Predictions
@@ -720,7 +735,24 @@ export default function NeuralTrainPage() {
                       </p>
                     </div>
 
-                    <div className="flex items-center gap-md">
+                    <div className="items-center gap-md space-y-2">
+                      <div className="flex items-center gap-xs">
+                        <button
+                          onClick={handleDownloadPredictions}
+                          className="flex items-center gap-xs px-sm py-1.5 bg-surface-container-high border border-outline-variant hover:border-primary transition-all text-xs font-semibold rounded-lg text-primary hover:text-on-surface cursor-pointer"
+                        >
+                          <MdDownload size={14} />
+                          <span>Download CSV</span>
+                        </button>
+                        <button
+                          onClick={handleDownloadModel}
+                          disabled={!results?.model_bytes_base64}
+                          className="flex items-center gap-xs px-sm py-1.5 bg-primary text-on-primary-fixed rounded-lg transition-all hover:bg-primary/90 disabled:opacity-50 disabled:cursor-not-allowed text-xs font-semibold"
+                        >
+                          <MdDownload size={14} />
+                          <span>Download Model</span>
+                        </button>
+                      </div>
                       <input
                         type="text"
                         placeholder="Search predictions..."
@@ -729,15 +761,8 @@ export default function NeuralTrainPage() {
                           setSearchTerm(e.target.value);
                           setCurrentPage(1);
                         }}
-                        className="bg-surface-container-low border border-outline-variant rounded-lg px-sm py-1.5 text-xs text-on-surface focus:border-primary max-w-[200px]"
+                        className="bg-surface-container-low border w-full border-outline-variant rounded-lg px-sm py-1.5 text-xs text-on-surface focus:border-primary"
                       />
-                      <button
-                        onClick={handleDownloadPredictions}
-                        className="flex items-center gap-xs px-sm py-1.5 bg-surface-container-high border border-outline-variant hover:border-primary transition-all text-xs font-semibold rounded-lg text-primary hover:text-on-surface cursor-pointer"
-                      >
-                        <MdDownload size={14} />
-                        <span>Download CSV</span>
-                      </button>
                     </div>
                   </div>
 
