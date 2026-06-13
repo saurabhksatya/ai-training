@@ -47,6 +47,16 @@ export default function Navbar() {
         >
           Neural Network Trainer
         </Link>
+        <Link
+          href="/rl-train"
+          className={`text-sm font-medium transition-colors px-3 py-1.5 rounded-lg border ${
+            pathname === "/rl-train"
+              ? "text-primary bg-primary/10 border-primary/20"
+              : "text-on-surface-variant hover:text-on-surface border-transparent"
+          }`}
+        >
+          Reinforcement Learning Lab
+        </Link>
       </nav>
     </header>
   );

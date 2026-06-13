@@ -257,3 +257,196 @@ async def neural_train(
         import traceback
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"Error running training/prediction: {str(e)}")
+
+
+# ----------------------------------------------------------------------
+# Reinforcement Learning (RLTrain) Endpoints
+# ----------------------------------------------------------------------
+from fastapi.responses import StreamingResponse, FileResponse
+from rl_train import start_training_task, get_training_task, cancel_training_task, MODELS_DIR, QNetwork
+import asyncio
+import queue
+
+class RLTrainRequest(BaseModel):
+    env: str = "CartPole-v1"
+    episodes: int = 200
+    max_steps: int = 500
+    gamma: float = 0.99
+    lr: float = 0.001
+    batch_size: int = 64
+    buffer_size: int = 10000
+    min_buffer_size: int = 1000
+    target_update_freq: int = 10
+    optimizer: str = "adam"
+    weight_decay: float = 0.0
+    epsilon_start: float = 1.0
+    epsilon_end: float = 0.05
+    epsilon_decay: float = 0.995
+    hidden_layers: List[int] = [128, 128]
+    activation: str = "relu"
+    seed: int = 42
+    reward_rules: List[dict] = []
+    fail_reward_threshold: float = 0.0
+
+@app.post("/rl/train")
+async def rl_train_endpoint(req: RLTrainRequest):
+    # Validate hidden layers limit
+    if len(req.hidden_layers) > 4:
+        raise HTTPException(status_code=400, detail="Maximum 4 hidden layers allowed.")
+    for h in req.hidden_layers:
+        if h < 1 or h > 512:
+            raise HTTPException(status_code=400, detail="Hidden layer size must be between 1 and 512.")
+            
+    # Validate other parameters
+    if req.episodes < 1 or req.episodes > 500:
+        raise HTTPException(status_code=400, detail="Episodes must be between 1 and 500.")
+    if req.max_steps < 1 or req.max_steps > 1000:
+        raise HTTPException(status_code=400, detail="Max steps must be between 1 and 1000.")
+    if req.buffer_size < 100 or req.buffer_size > 50000:
+        raise HTTPException(status_code=400, detail="Buffer size must be between 100 and 50000.")
+    if req.batch_size < 1 or req.batch_size > 256:
+        raise HTTPException(status_code=400, detail="Batch size must be between 1 and 256.")
+    if req.lr < 1e-6 or req.lr > 0.1:
+        raise HTTPException(status_code=400, detail="Learning rate must be between 1e-6 and 0.1.")
+    if req.gamma < 0.0 or req.gamma > 1.0:
+        raise HTTPException(status_code=400, detail="Discount factor must be between 0.0 and 1.0.")
+        
+    task_id = start_training_task(req.model_dump())
+    return {"task_id": task_id}
+
+
+@app.get("/rl/progress/{task_id}")
+async def rl_progress_endpoint(task_id: str):
+    import json
+    task = get_training_task(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+        
+    async def event_generator():
+        # Yield historical data
+        for h in task.history:
+            yield f"data: {json.dumps({'type': 'progress', 'data': h})}\n\n"
+            
+        for log in task.logs:
+            yield f"data: {json.dumps({'type': 'log', 'data': log})}\n\n"
+            
+        last_history_sent = len(task.history)
+        while task.status == "running":
+            # Consume new logs
+            try:
+                while True:
+                    log_line = task.log_queue.get_nowait()
+                    yield f"data: {json.dumps({'type': 'log', 'data': log_line})}\n\n"
+            except queue.Empty:
+                pass
+                
+            # Consume new progress data
+            current_history_len = len(task.history)
+            if current_history_len > last_history_sent:
+                for i in range(last_history_sent, current_history_len):
+                    yield f"data: {json.dumps({'type': 'progress', 'data': task.history[i]})}\n\n"
+                last_history_sent = current_history_len
+                
+            await asyncio.sleep(0.2)
+            
+        # Drain remaining logs
+        try:
+            while True:
+                log_line = task.log_queue.get_nowait()
+                yield f"data: {json.dumps({'type': 'log', 'data': log_line})}\n\n"
+        except queue.Empty:
+            pass
+            
+        # Final status
+        yield f"data: {json.dumps({'type': 'status', 'status': task.status, 'error': task.error_message})}\n\n"
+        
+    return StreamingResponse(event_generator(), media_type="text/event-stream")
+
+
+@app.post("/rl/cancel/{task_id}")
+async def rl_cancel_endpoint(task_id: str):
+    success = cancel_training_task(task_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Task not found")
+    return {"status": "cancelled"}
+
+
+@app.get("/rl/download/{task_id}")
+async def rl_download_endpoint(task_id: str):
+    import os
+    model_path = os.path.join(MODELS_DIR, f"{task_id}.pt")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Model file not found")
+    return FileResponse(model_path, filename="dqn_model.pt", media_type="application/octet-stream")
+
+
+@app.get("/rl/test/stream/{task_id}")
+async def rl_test_stream_endpoint(task_id: str, episodes: int = 3, max_steps: int = 500):
+    import os
+    import torch
+    import gymnasium as gym
+    import numpy as np
+    from PIL import Image
+    import io
+    
+    # Enforce testing limits on the server side
+    episodes = min(max(int(episodes), 1), 5)
+    max_steps = min(max(int(max_steps), 1), 1000)
+    
+    model_path = os.path.join(MODELS_DIR, f"{task_id}.pt")
+    if not os.path.exists(model_path):
+        raise HTTPException(status_code=404, detail="Model not found")
+        
+    device = "cpu"
+    
+    try:
+        checkpoint = torch.load(model_path, map_location=device, weights_only=False)
+        train_args = checkpoint["args"]
+        state_dim = checkpoint["state_dim"]
+        action_dim = checkpoint["action_dim"]
+        
+        # Instantiate network
+        model = QNetwork(state_dim, train_args["hidden_layers"], action_dim, train_args["activation"]).to(device)
+        model.load_state_dict(checkpoint["model_state_dict"])
+        model.eval()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load model: {str(e)}")
+        
+    async def frame_generator():
+        env = None
+        try:
+            env = gym.make(train_args["env"], render_mode="rgb_array")
+            for ep in range(episodes):
+                state, _ = env.reset()
+                state = np.array(state, dtype=np.float32).flatten()
+                
+                for step in range(max_steps):
+                    with torch.no_grad():
+                        q_values = model(torch.tensor(state, dtype=torch.float32, device=device).unsqueeze(0))
+                        action = int(q_values.argmax(dim=1).item())
+                        
+                    state, reward, terminated, truncated, _ = env.step(action)
+                    state = np.array(state, dtype=np.float32).flatten()
+                    
+                    frame = env.render()
+                    if frame is not None:
+                        img = Image.fromarray(frame)
+                        img.thumbnail((600, 400)) # Compress/scale to save bandwidth
+                        buf = io.BytesIO()
+                        img.save(buf, format="JPEG", quality=80)
+                        jpeg_bytes = buf.getvalue()
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + jpeg_bytes + b'\r\n')
+                               
+                    if terminated or truncated:
+                        break
+                    await asyncio.sleep(0.04) # roughly 25 frames per second
+        except asyncio.CancelledError:
+            pass
+        except Exception as e:
+            print(f"Error in testing stream: {e}")
+        finally:
+            if env is not None:
+                env.close()
+                
+    return StreamingResponse(frame_generator(), media_type="multipart/x-mixed-replace; boundary=frame")
