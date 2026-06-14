@@ -67,39 +67,41 @@ export default function RLTrainPage() {
     JSON.stringify(
       [
         {
-          "type": "step_penalty",
-          "value": -0.01
-        }
+          type: "step_penalty",
+          value: -0.01,
+        },
       ],
       null,
-      2
-    )
+      2,
+    ),
   );
 
   const handleDownloadSampleJson = () => {
     const sample = [
       {
-        "type": "step_penalty",
-        "value": -0.01
+        type: "step_penalty",
+        value: -0.01,
       },
       {
-        "type": "state_threshold",
-        "index": 2,
-        "op": ">",
-        "value": 0.1,
-        "reward": -1
+        type: "state_threshold",
+        index: 2,
+        op: ">",
+        value: 0.1,
+        reward: -1,
       },
       {
-        "type": "terminal_bonus",
-        "reward": 50
+        type: "terminal_bonus",
+        reward: 50,
       },
       {
-        "type": "terminal_penalty",
-        "reward": -50
-      }
+        type: "terminal_penalty",
+        reward: -50,
+      },
     ];
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(sample, null, 2));
-    const downloadAnchor = document.createElement('a');
+    const dataStr =
+      "data:text/json;charset=utf-8," +
+      encodeURIComponent(JSON.stringify(sample, null, 2));
+    const downloadAnchor = document.createElement("a");
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute("download", "rewards.json");
     document.body.appendChild(downloadAnchor);
@@ -132,11 +134,6 @@ export default function RLTrainPage() {
   }, []);
 
   // Auto-scroll logs terminal
-  useEffect(() => {
-    if (consoleEndRef.current) {
-      consoleEndRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [logs]);
 
   // Run Training
   const handleStartTraining = async () => {
@@ -194,11 +191,15 @@ export default function RLTrainPage() {
         fail_reward_threshold: failRewardThreshold,
       };
 
-      const response = await fetch((process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") + "/rl/train", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      const response = await fetch(
+        (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") +
+          "/rl/train",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        },
+      );
 
       if (!response.ok) {
         let errorMsg = "Failed to start training.";
@@ -234,7 +235,11 @@ export default function RLTrainPage() {
       eventSourceRef.current.close();
     }
 
-    const sse = new EventSource((process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") + "/rl/progress/" + taskId);
+    const sse = new EventSource(
+      (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") +
+        "/rl/progress/" +
+        taskId,
+    );
     eventSourceRef.current = sse;
 
     sse.onmessage = (event) => {
@@ -273,9 +278,14 @@ export default function RLTrainPage() {
   const handleCancelTraining = async () => {
     if (!taskId) return;
     try {
-      await fetch((process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") + "/rl/cancel/" + taskId, {
-        method: "POST",
-      });
+      await fetch(
+        (process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") +
+          "/rl/cancel/" +
+          taskId,
+        {
+          method: "POST",
+        },
+      );
       setStatus("cancelled");
       if (eventSourceRef.current) {
         eventSourceRef.current.close();
@@ -563,7 +573,9 @@ export default function RLTrainPage() {
               </div>
               <div className="flex flex-col gap-2">
                 <p className="text-xs text-on-surface-variant leading-relaxed">
-                  Define custom reward shaping rules as a JSON array. These rules are applied step-by-step during training to guide agent learning.
+                  Define custom reward shaping rules as a JSON array. These
+                  rules are applied step-by-step during training to guide agent
+                  learning.
                 </p>
                 <div className="relative">
                   <textarea
@@ -589,14 +601,15 @@ export default function RLTrainPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <span
-                    className={`w-3 h-3 rounded-full ${status === "training"
-                      ? "bg-amber-400 animate-pulse"
-                      : status === "completed"
-                        ? "bg-green-400"
-                        : status === "failed"
-                          ? "bg-red-500"
-                          : "bg-gray-400"
-                      }`}
+                    className={`w-3 h-3 rounded-full ${
+                      status === "training"
+                        ? "bg-amber-400 animate-pulse"
+                        : status === "completed"
+                          ? "bg-green-400"
+                          : status === "failed"
+                            ? "bg-red-500"
+                            : "bg-gray-400"
+                    }`}
                   />
                   <span className="text-sm font-bold capitalize">{status}</span>
                   {status === "training" && (
@@ -626,7 +639,12 @@ export default function RLTrainPage() {
 
                 {status === "completed" && taskId && (
                   <a
-                    href={(process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") + "/rl/download/" + taskId}
+                    href={
+                      (process.env.NEXT_PUBLIC_BACKEND_URL ||
+                        "http://localhost:8000") +
+                      "/rl/download/" +
+                      taskId
+                    }
                     download
                     className="px-4 py-2 bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/40 border border-emerald-500/30 rounded-lg text-sm flex items-center gap-1.5 transition-colors font-medium"
                   >
@@ -752,7 +770,14 @@ export default function RLTrainPage() {
                 {showSim ? (
                   <div className="flex flex-col items-center gap-2 bg-surface-container-low p-4 rounded-xl border border-outline-variant">
                     <img
-                      src={(process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8000") + "/rl/test/stream/" + taskId + "?episodes=3&max_steps=500&t=" + simCacheBuster}
+                      src={
+                        (process.env.NEXT_PUBLIC_BACKEND_URL ||
+                          "http://localhost:8000") +
+                        "/rl/test/stream/" +
+                        taskId +
+                        "?episodes=3&max_steps=500&t=" +
+                        simCacheBuster
+                      }
                       alt="Gym Environment Pygame Simulation"
                       className="rounded-lg max-w-full border border-outline-variant bg-slate-950"
                       style={{ height: "300px", width: "auto" }}
