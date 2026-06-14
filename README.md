@@ -71,7 +71,7 @@ Designed for students, researchers, and beginners, the platform abstracts the co
 | ---------------- | ----------------------------------------- | ----------------------------------------- |
 | Frontend         | Next.js (TypeScript, React, Tailwind CSS) | Responsive Web User Interface             |
 | Backend          | FastAPI (Python)                          | High-performance Web API                  |
-| Machine Learning | Scikit-Learn, PyTorch                     | Model definition and training libraries   |
+| Machine Learning | Scikit-Learn, PyTorch, Gymnasium          | Model definition and training libraries   |
 | Data Processing  | NumPy, Pandas                             | Data validation and manipulation          |
 | Visualization    | Matplotlib                                | Generating plot graphics (base64 encoded) |
 
