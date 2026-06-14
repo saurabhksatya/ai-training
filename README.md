@@ -1,6 +1,6 @@
 # NEUROFORGE - AI Model Training Platform
 
-NeuroForge, a web-based machine learning platform that enables users to upload datasets, select target variables, train pre-built ML models, compare performance metrics, and generate predictions through an intuitive interface.
+NeuroForge is a web-based machine learning platform that enables users to upload datasets, select target variables, train pre-built ML models, compare performance metrics, and generate predictions through an intuitive interface.
 
 ## Contents
 
@@ -11,10 +11,8 @@ NeuroForge, a web-based machine learning platform that enables users to upload d
 - [How to Run](#how-to-run)
 - [Machine Learning Workflow](#machine-learning-workflow)
 - [Objectives](#objectives)
-- [Future Scope](#future-scope)
-- [Project Status](#project-status)
-
----
+- [Project Architecture](#project-architecture)
+- [Traffic Flow](#traffic-flow)
 
 ## Overview
 
@@ -28,32 +26,33 @@ Designed for students, researchers, and beginners, the platform abstracts the co
 
 ### Dataset Management
 
-- Upload custom CSV datasets
-- Use built-in sample datasets
-- Automatic dataset processing
+- Upload custom CSV/Excel datasets
+- Use built-in sample datasets (Iris, Breast Cancer)
+- Automatic dataset processing and validation
 
 ### Model Training
 
-- Select target variables
-- Train pre-configured machine learning models
-- Automated training workflow
+- Select target variables for prediction
+- Train classical machine learning models (Random Forest, k-NN, Gradient Boosting)
+- Train custom Multi-Layer Perceptron (MLP) Neural Networks
+- Train Reinforcement Learning (DQN) agents
 
 ### Model Evaluation
 
-- Accuracy score calculation
-- Confusion matrix generation
+- Accuracy/performance score calculation
+- Confusion matrix and loss/reward curve generation
 - Performance comparison across models
 
 ### Data Visualization
 
-- Graphical result representation using Matplotlib
+- Graphical representation of results (confusion matrix, loss history, reward curves)
 - Comparative performance charts
-- Classification result analysis
+- Live RL training metrics and episode progress streaming
 
 ### Prediction System
 
 - Generate predictions using trained models
-- Evaluate model effectiveness on provided data
+- Run real-time test simulations for RL agents
 
 ---
 
@@ -61,20 +60,20 @@ Designed for students, researchers, and beginners, the platform abstracts the co
 
 1. Upload a dataset or select a sample dataset.
 2. Choose the target variable for prediction.
-3. Select a machine learning model.
+3. Select a machine learning model or configure neural network / RL settings.
 4. Train the model and view evaluation metrics, visualizations, and predictions.
 
 ---
 
 ## Technology Stack
 
-| Component        | Technology            |
-| ---------------- | --------------------- |
-| Frontend         | HTML, CSS, JavaScript |
-| Backend          | Next.js               |
-| Machine Learning | Scikit-Learn          |
-| Data Processing  | NumPy, Pandas         |
-| Visualization    | Matplotlib            |
+| Component        | Technology                                | Description                               |
+| ---------------- | ----------------------------------------- | ----------------------------------------- |
+| Frontend         | Next.js (TypeScript, React, Tailwind CSS) | Responsive Web User Interface             |
+| Backend          | FastAPI (Python)                          | High-performance Web API                  |
+| Machine Learning | Scikit-Learn, PyTorch                     | Model definition and training libraries   |
+| Data Processing  | NumPy, Pandas                             | Data validation and manipulation          |
+| Visualization    | Matplotlib                                | Generating plot graphics (base64 encoded) |
 
 ---
 
@@ -104,7 +103,7 @@ uv run uvicorn main:app --host 0.0.0.0 --port 8000
 ### Frontend
 
 1. Open a terminal in `website/`
-2. Install dependencies if needed:
+2. Install dependencies:
 
 ```bash
 npm install
@@ -146,22 +145,73 @@ Visualization & Comparison
 
 ---
 
-## Future Scope
+## Project Architecture
 
-- Additional machine learning algorithms
-- Hyperparameter tuning
-- Model export and sharing
-- User authentication
-- Dataset management system
-- Cloud-based training
-- AutoML integration
-- Deep learning support
-- Real-time training monitoring
+This section describes the overall architecture of NeuroForge and the responsibilities of each component.
+
+- **Frontend (`website/`)**: Next.js application that provides the user interface for dataset upload, model selection, training control, and results visualization. Runs in the user's browser and communicates with the backend over HTTP/SSE.
+- **Backend API (`backend/main.py`)**: FastAPI service that exposes REST endpoints for dataset upload, model training, status queries, and results retrieval. It accepts requests from the frontend and coordinates training workflows.
+- **Training Engines (`backend/*.py`)**:
+  - `train.py`: Classical machine learning training and evaluation using Scikit-Learn.
+  - `neural_train.py`: Custom Multilayer Perceptron (MLP) classification and regression training using PyTorch.
+  - `rl_train.py`: Deep Q-Network (DQN) training in background threads using PyTorch.
+- **Storage (`backend/models/`)**: Model checkpoints and artifacts are saved on disk for testing and download.
+
+### Architectural Diagram
+
+```mermaid
+graph TD
+    %% Styling
+    classDef frontend fill:#3b82f6,stroke:#1d4ed8,stroke-width:2px,color:#fff;
+    classDef backend fill:#10b981,stroke:#047857,stroke-width:2px,color:#fff;
+    classDef scripts fill:#f59e0b,stroke:#d97706,stroke-width:2px,color:#fff;
+    classDef storage fill:#8b5cf6,stroke:#6d28d9,stroke-width:2px,color:#fff;
+
+    %% Nodes
+    subgraph Client ["Client-Side (User Browser)"]
+        UI["Next.js Web Interface<br>(React, CSS, TS)"]:::frontend
+    end
+
+    subgraph Server ["Server-Side (FastAPI Web Server)"]
+        API["FastAPI App<br>(main.py)"]:::backend
+
+        subgraph Engines ["Training Engines (Python / ML Stack)"]
+            Classical["Classical ML Training<br>(train.py / Scikit-Learn)"]:::scripts
+            Neural["Neural Network Training<br>(neural_train.py / PyTorch MLP)"]:::scripts
+            RL["Reinforcement Learning<br>(rl_train.py / PyTorch DQN)"]:::scripts
+        end
+
+        Thread["Background Threads<br>(threading.Thread)"]:::backend
+        InMemory["In-Memory Task Store<br>(rl_tasks)"]:::backend
+        LocalStorage["Local Storage<br>(backend/models/)"]:::storage
+    end
+
+    %% Connections
+    UI -- "1. Uploads dataset & config<br>2. HTTP POST (/train, /neural-train)" --> API
+    UI -- "3. HTTP POST (/rl/train)" --> API
+    UI -- "5. SSE Event Stream (/rl/progress/{id})" --> API
+
+    API -- "Runs synchronously" --> Classical
+    API -- "Runs synchronously" --> Neural
+    API -- "Spawns async task" --> Thread
+
+    Thread -- "Runs DQN Training" --> RL
+    Thread -- "Updates progress" --> InMemory
+    API -- "Polls progress" --> InMemory
+
+    Classical -- "Saves .pkl / Generates plots" --> LocalStorage
+    Neural -- "Saves .pt / Generates plots" --> LocalStorage
+    RL -- "Saves checkpoint .pt" --> LocalStorage
+```
 
 ---
 
-## Project Status
+## Traffic Flow
 
-**Currently in Development**
-
-This project is being developed as a web-based machine learning platform focused on simplifying model training, evaluation, visualization, and prediction workflows for end users.
+1. **Upload & Setup**: The user opens the web UI and uploads or selects a dataset on the Next.js frontend.
+2. **Request Submission**: The frontend sends the dataset/parameters via a POST request to FastAPI (`/train`, `/neural-train`, or `/rl/train`).
+3. **Execution**:
+   - Classical and Neural jobs run synchronously on the main thread and return evaluation metrics + base64-encoded plot images immediately.
+   - RL training starts asynchronously on a spawned background thread.
+4. **Real-time Updates**: For RL training, the frontend initiates a Server-Sent Events (SSE) connection to `/rl/progress/{task_id}` to stream real-time episode progress.
+5. **Retrieval & Verification**: When training is complete, the user can verify performance or download the trained model file from the generated artifacts in `backend/models/`.
